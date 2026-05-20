@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Industrial Anomaly Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+    h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    p.sub { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+    .layout { display: flex; gap: 24px; width: 100%; max-width: 1000px; align-items: flex-start; }
+
+    .card { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .input-card { flex: 1; }
+    .result-card { flex: 1; display: none; }
+
+    h2 { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    input:focus, select:focus { border-color: #6366f1; }
+
+    .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    button { width: 100%; padding: 13px; background: #1a1a2e; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.2s; }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .status-ok { background: #dcfce7; color: #16a34a; }
+    .status-warn { background: #fef9c3; color: #ca8a04; }
+    .status-danger { background: #fee2e2; color: #dc2626; }
+
+    .prob-bar { background: #f0f2f5; border-radius: 8px; height: 12px; margin: 8px 0 16px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 8px; transition: width 0.5s; }
+
+    .section { margin-bottom: 20px; }
+    .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .section-body { font-size: 14px; color: #333; line-height: 1.7; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
+
+    .failure-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tag { background: #fee2e2; color: #dc2626; border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #444; border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 700px) { .layout { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <h1>Industrial Anomaly Agent</h1>
+  <p class="sub">산업 설비 센서 데이터 기반 고장 예측 및 AI 분석</p>
+
+  <div class="layout">
+    <div class="card input-card">
+      <h2>센서 데이터 입력</h2>
+
+      <div class="field">
+        <label>장비 유형</label>
+        <select id="machine_type">
+          <option value="M">M (중간)</option>
+          <option value="L">L (저급)</option>
+          <option value="H">H (고급)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>공기 온도 (K)</label>
+        <input type="number" id="air_temperature" value="298.1" step="0.1" />
+        <div class="hint">정상 범위: 295 ~ 305 K</div>
+      </div>
+      <div class="field">
+        <label>공정 온도 (K)</label>
+        <input type="number" id="process_temperature" value="308.6" step="0.1" />
+        <div class="hint">정상 범위: 305 ~ 315 K</div>
+      </div>
+      <div class="field">
+        <label>회전 속도 (RPM)</label>
+        <input type="number" id="rotational_speed" value="1551" />
+        <div class="hint">정상 범위: 1168 ~ 2886 RPM</div>
+      </div>
+      <div class="field">
+        <label>토크 (Nm)</label>
+        <input type="number" id="torque" value="42.8" step="0.1" />
+        <div class="hint">정상 범위: 3.8 ~ 76.6 Nm</div>
+      </div>
+      <div class="field">
+        <label>공구 마모 (min)</label>
+        <input type="number" id="tool_wear" value="0" />
+        <div class="hint">정상 범위: 0 ~ 253 min</div>
+      </div>
+
+      <button id="predict-btn" onclick="predict()">고장 예측 분석</button>
+      <button style="background:#6366f1; margin-top:10px;" onclick="loadSample()">⚡ 고장 샘플 불러오기</button>
+    </div>
+
+    <div class="card result-card" id="result-card">
+      <h2>분석 결과</h2>
+      <div id="result-body"></div>
+    </div>
+  </div>
+
+  <script>
+    function loadSample() {
+      document.getElementById("air_temperature").value = 302.4;
+      document.getElementById("process_temperature").value = 313.7;
+      document.getElementById("rotational_speed").value = 1380;
+      document.getElementById("torque").value = 68.5;
+      document.getElementById("tool_wear").value = 220;
+      document.getElementById("machine_type").value = "L";
+    }
+
+    async function predict() {
+      const btn = document.getElementById("predict-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>분석 중...';
+
+      const data = {
+        air_temperature: parseFloat(document.getElementById("air_temperature").value),
+        process_temperature: parseFloat(document.getElementById("process_temperature").value),
+        rotational_speed: parseFloat(document.getElementById("rotational_speed").value),
+        torque: parseFloat(document.getElementById("torque").value),
+        tool_wear: parseFloat(document.getElementById("tool_wear").value),
+        machine_type: document.getElementById("machine_type").value,
+      };
+
+      try {
+        const res = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+
+        if (!res.ok) { alert(result.detail); return; }
+
+        const card = document.getElementById("result-card");
+        const body = document.getElementById("result-body");
+        card.style.display = "block";
+
+        const prob = result.failure_probability;
+        const barColor = prob >= 60 ? "#dc2626" : prob >= 30 ? "#ca8a04" : "#16a34a";
+        const badgeClass = prob >= 60 ? "status-danger" : prob >= 30 ? "status-warn" : "status-ok";
+        const badgeText = prob >= 60 ? "고장 위험" : prob >= 30 ? "주의 필요" : "정상";
+
+        const tags = result.failure_types.length > 0
+          ? result.failure_types.map(t => `<span class="tag">${t}</span>`).join("")
+          : '<span style="color:#888;font-size:13px;">감지된 고장 유형 없음</span>';
+
+        body.innerHTML = `
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-bottom:4px;">
+            <span>고장 확률</span><span style="font-weight:600;color:#333">${prob}%</span>
+          </div>
+          <div class="prob-bar"><div class="prob-fill" style="width:${prob}%;background:${barColor}"></div></div>
+          <div class="section">
+            <div class="section-title">예측 고장 유형</div>
+            <div class="failure-tags">${tags}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">상황 분석</div>
+            <div class="section-body">${result.explanation}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">조치 권고</div>
+            <div class="section-body">${result.recommendations}</div>
+          </div>`;
+      } catch {
+        alert("서버 오류가 발생했습니다.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "고장 예측 분석";
+      }
+    }
+  </script>
+</body>
+</html>
