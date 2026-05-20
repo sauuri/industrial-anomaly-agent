@@ -7,307 +7,267 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e0e0e0; display: flex; flex-direction: column; }
 
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; background: #1a1d27; border-bottom: 1px solid #2a2d3a; }
-    .header-left h1 { font-size: 18px; font-weight: 700; color: #fff; }
-    .header-left p { font-size: 12px; color: #888; margin-top: 2px; }
-    .header-right { display: flex; align-items: center; gap: 12px; }
+    /* ── 헤더 ── */
+    .header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: #1a1d27; border-bottom: 1px solid #2a2d3a; height: 52px; }
+    .header h1 { font-size: 15px; font-weight: 700; color: #fff; }
+    .header p  { font-size: 11px; color: #666; margin-top: 1px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .live-badge { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #4ade80; font-weight: 600; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+    .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .status-normal { background:#14532d; color:#4ade80; }
+    .status-warn   { background:#713f12; color:#fbbf24; }
+    .status-danger { background:#7f1d1d; color:#f87171; }
+    .btn-stop { padding: 5px 14px; background: #374151; border: none; border-radius: 7px; color: #e0e0e0; font-size: 12px; cursor: pointer; }
+    .btn-stop:hover { background:#4b5563; }
 
-    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4ade80; font-weight: 600; }
-    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    /* ── 상단 확률 바 ── */
+    .prob-strip { flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 48px; background: #13151f; border-bottom: 1px solid #2a2d3a; }
+    .prob-label { font-size: 11px; color: #888; white-space: nowrap; }
+    .prob-bar-bg { flex: 1; background: #2a2d3a; border-radius: 6px; height: 10px; overflow: hidden; }
+    .prob-bar-fill { height: 100%; border-radius: 6px; transition: width .5s, background .5s; }
+    .prob-pct { font-size: 16px; font-weight: 700; color: #fff; width: 52px; text-align: right; white-space: nowrap; }
+    .ftags { display: flex; gap: 5px; min-width: 220px; min-height: 22px; align-items: center; }
+    .ftag { background:#7f1d1d; color:#f87171; border-radius:5px; padding:2px 8px; font-size:10px; white-space:nowrap; }
 
-    .status-badge { padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-    .status-normal { background: #14532d; color: #4ade80; }
-    .status-warn   { background: #713f12; color: #fbbf24; }
-    .status-danger { background: #7f1d1d; color: #f87171; }
+    /* ── 본문 3컬럼 ── */
+    .body { flex: 1; display: grid; grid-template-columns: 2fr 2.2fr 1.3fr; gap: 0; min-height: 0; }
 
-    .btn-stop { padding: 6px 16px; background: #374151; border: none; border-radius: 8px; color: #e0e0e0; font-size: 13px; cursor: pointer; }
-    .btn-stop:hover { background: #4b5563; }
+    /* 왼쪽: 6 센서 차트 */
+    .col-sensors { padding: 12px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr); gap: 10px; min-height: 0; }
+    .chart-card { background:#1a1d27; border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; min-height:0; }
+    .chart-title { font-size:10px; color:#666; font-weight:600; text-transform:uppercase; letter-spacing:.4px; flex-shrink:0; }
+    .chart-val { font-size:17px; font-weight:700; color:#fff; flex-shrink:0; margin: 2px 0 4px; }
+    .chart-val span { font-size:10px; color:#555; font-weight:400; margin-left:3px; }
+    .chart-canvas-wrap { flex:1; min-height:0; position:relative; }
+    .chart-canvas-wrap canvas { position:absolute; inset:0; width:100%!important; height:100%!important; }
 
-    .main { display: grid; grid-template-columns: 1fr 320px; gap: 0; height: calc(100vh - 65px); }
+    /* 가운데: 산점도 */
+    .col-scatter { padding: 12px 6px 12px 0; display:flex; flex-direction:column; min-height:0; }
+    .scatter-card { background:#1a1d27; border-radius:10px; padding:12px; flex:1; display:flex; flex-direction:column; min-height:0; }
+    .scatter-header { flex-shrink:0; display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+    .scatter-title { font-size:11px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+    .scatter-sub { font-size:10px; color:#444; margin-top:2px; }
+    .scatter-legend { display:flex; gap:10px; font-size:10px; color:#666; flex-wrap:wrap; justify-content:flex-end; }
+    .scatter-legend span { display:flex; align-items:center; gap:4px; }
+    .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+    .scatter-canvas-wrap { flex:1; min-height:0; position:relative; }
+    .scatter-canvas-wrap canvas { position:absolute; inset:0; width:100%!important; height:100%!important; }
 
-    .charts-area { padding: 20px; overflow-y: auto; }
-    .prob-section { background: #1a1d27; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
-    .prob-label { display: flex; justify-content: space-between; font-size: 13px; color: #aaa; margin-bottom: 8px; }
-    .prob-value { font-size: 28px; font-weight: 700; color: #fff; }
-    .prob-bar-bg { background: #2a2d3a; border-radius: 8px; height: 14px; overflow: hidden; }
-    .prob-bar-fill { height: 100%; border-radius: 8px; transition: width 0.6s, background 0.6s; }
-    .failure-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .ftag { background: #7f1d1d; color: #f87171; border-radius: 6px; padding: 3px 10px; font-size: 11px; }
-
-    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .chart-card { background: #1a1d27; border-radius: 12px; padding: 14px; }
-    .chart-card canvas { height: 100px !important; width: 100% !important; }
-    .scatter-card { background: #1a1d27; border-radius: 12px; padding: 18px; margin-top: 14px; }
-    .scatter-card canvas { height: 280px !important; width: 100% !important; }
-    .scatter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .scatter-legend { display: flex; gap: 14px; font-size: 11px; color: #888; }
-    .scatter-legend span { display: flex; align-items: center; gap: 5px; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .chart-title { font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .chart-val { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 10px; }
-    .chart-val span { font-size: 12px; color: #666; font-weight: 400; margin-left: 4px; }
-
-    .sidebar { background: #1a1d27; border-left: 1px solid #2a2d3a; padding: 20px; overflow-y: auto; }
-    .sidebar-title { font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
-
-    .alert-item { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; line-height: 1.5; }
-    .alert-danger { background: #2d1515; border-left: 3px solid #f87171; }
-    .alert-warn   { background: #2d2315; border-left: 3px solid #fbbf24; }
-    .alert-normal { background: #152d1a; border-left: 3px solid #4ade80; }
-    .alert-time { color: #666; font-size: 11px; margin-bottom: 3px; }
-    .alert-msg { color: #e0e0e0; }
-
-    @media (max-width: 900px) {
-      .main { grid-template-columns: 1fr; }
-      .charts-grid { grid-template-columns: 1fr; }
-      .sidebar { border-left: none; border-top: 1px solid #2a2d3a; }
-    }
+    /* 오른쪽: 알림 로그 */
+    .col-alerts { background:#1a1d27; border-left:1px solid #2a2d3a; padding:12px; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+    .alert-title { font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px; flex-shrink:0; }
+    .alert-log { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+    .alert-log::-webkit-scrollbar { width:4px; }
+    .alert-log::-webkit-scrollbar-thumb { background:#2a2d3a; border-radius:2px; }
+    .alert-item { padding:8px 10px; border-radius:7px; font-size:11px; line-height:1.5; flex-shrink:0; }
+    .alert-danger { background:#2d1515; border-left:3px solid #f87171; }
+    .alert-warn   { background:#2d2315; border-left:3px solid #fbbf24; }
+    .alert-time { color:#555; font-size:10px; margin-bottom:2px; }
+    .alert-msg  { color:#ddd; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-left">
+  <div>
     <h1>Real-time Anomaly Detection Dashboard</h1>
     <p>Industrial Anomaly Agent — 실시간 센서 모니터링</p>
   </div>
   <div class="header-right">
     <div class="live-badge"><div class="live-dot"></div>LIVE</div>
     <span class="status-badge status-normal" id="status-badge">정상</span>
-    <button class="btn-stop" id="toggle-btn" onclick="toggleStream()">일시정지</button>
+    <button class="btn-stop" onclick="toggleStream()">일시정지</button>
   </div>
 </div>
 
-<div class="main">
-  <div class="charts-area">
-    <div class="prob-section">
-      <div class="prob-label">
-        <span>고장 확률</span>
-        <span class="prob-value" id="prob-value">—</span>
-      </div>
-      <div class="prob-bar-bg"><div class="prob-bar-fill" id="prob-bar" style="width:0%;background:#4ade80"></div></div>
-      <div class="failure-tags" id="failure-tags"></div>
-    </div>
+<div class="prob-strip">
+  <span class="prob-label">고장 확률</span>
+  <div class="prob-bar-bg"><div class="prob-bar-fill" id="prob-bar" style="width:0%;background:#4ade80"></div></div>
+  <span class="prob-pct" id="prob-pct">—</span>
+  <div class="ftags" id="ftags"></div>
+</div>
 
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="chart-title">공기 온도</div>
-        <div class="chart-val" id="val-air">— <span>K</span></div>
-        <canvas id="chart-air" height="80"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">공정 온도</div>
-        <div class="chart-val" id="val-process">— <span>K</span></div>
-        <canvas id="chart-process" height="80"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">회전 속도</div>
-        <div class="chart-val" id="val-rpm">— <span>RPM</span></div>
-        <canvas id="chart-rpm" height="80"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">토크</div>
-        <div class="chart-val" id="val-torque">— <span>Nm</span></div>
-        <canvas id="chart-torque" height="80"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">공구 마모</div>
-        <div class="chart-val" id="val-wear">— <span>min</span></div>
-        <canvas id="chart-wear" height="80"></canvas>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">고장 확률 추이</div>
-        <div class="chart-val" id="val-prob2">— <span>%</span></div>
-        <canvas id="chart-prob" height="80"></canvas>
-      </div>
-    </div>
+<div class="body">
 
+  <!-- 왼쪽: 센서 6개 -->
+  <div class="col-sensors">
+    <div class="chart-card">
+      <div class="chart-title">공기 온도</div>
+      <div class="chart-val" id="v-air">— <span>K</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-air"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">공정 온도</div>
+      <div class="chart-val" id="v-proc">— <span>K</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-proc"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">회전 속도</div>
+      <div class="chart-val" id="v-rpm">— <span>RPM</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-rpm"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">토크</div>
+      <div class="chart-val" id="v-torque">— <span>Nm</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-torque"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">공구 마모</div>
+      <div class="chart-val" id="v-wear">— <span>min</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-wear"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">고장 확률 추이</div>
+      <div class="chart-val" id="v-prob">— <span>%</span></div>
+      <div class="chart-canvas-wrap"><canvas id="c-prob"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 가운데: 토크-RPM 산점도 -->
+  <div class="col-scatter">
     <div class="scatter-card">
       <div class="scatter-header">
         <div>
-          <div class="chart-title">토크 — 회전속도 운전점 (Torque vs RPM)</div>
-          <div style="font-size:11px;color:#555;margin-top:3px;">최근 60개 운전점 · 색상 = 고장 확률</div>
+          <div class="scatter-title">토크 — 회전속도 운전점 (Torque vs RPM)</div>
+          <div class="scatter-sub">최근 60개 운전점 · 색상 = 고장 확률</div>
         </div>
         <div class="scatter-legend">
-          <span><i class="dot" style="background:#4ade80"></i>정상 (&lt;30%)</span>
-          <span><i class="dot" style="background:#fbbf24"></i>주의 (30~60%)</span>
-          <span><i class="dot" style="background:#f87171"></i>위험 (&gt;60%)</span>
-          <span><i class="dot" style="background:#fff;width:12px;height:12px;border:2px solid #60a5fa"></i>현재</span>
+          <span><i class="dot" style="background:#4ade80"></i>정상(&lt;30%)</span>
+          <span><i class="dot" style="background:#fbbf24"></i>주의</span>
+          <span><i class="dot" style="background:#f87171"></i>위험(&gt;60%)</span>
+          <span><i class="dot" style="background:#fff;width:9px;height:9px;border:2px solid #60a5fa"></i>현재</span>
         </div>
       </div>
-      <canvas id="chart-scatter"></canvas>
+      <div class="scatter-canvas-wrap"><canvas id="c-scatter"></canvas></div>
     </div>
   </div>
 
-  <div class="sidebar">
-    <div class="sidebar-title">알림 로그</div>
-    <div id="alert-log"></div>
+  <!-- 오른쪽: 알림 로그 -->
+  <div class="col-alerts">
+    <div class="alert-title">알림 로그</div>
+    <div class="alert-log" id="alert-log"></div>
   </div>
+
 </div>
 
 <script>
-  const MAX_POINTS = 40;
-  const MAX_SCATTER = 60;
-  const chartConfig = (color, ymin, ymax) => ({
+  const MAX_PTS = 40, MAX_SC = 60;
+
+  const lineCfg = (color, ymin, ymax) => ({
     type: "line",
-    data: { labels: [], datasets: [{ data: [], borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.4, fill: true, backgroundColor: color + "18" }] },
-    options: { animation: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: ymin, max: ymax } }, responsive: true, maintainAspectRatio: false }
+    data: { labels:[], datasets:[{ data:[], borderColor:color, borderWidth:1.5, pointRadius:0, tension:.4, fill:true, backgroundColor:color+"18" }] },
+    options: { animation:false, plugins:{legend:{display:false}}, scales:{ x:{display:false}, y:{display:false,min:ymin,max:ymax} }, responsive:true, maintainAspectRatio:false }
   });
 
   const charts = {
-    air:     new Chart(document.getElementById("chart-air"),     chartConfig("#60a5fa",  290, 310)),
-    process: new Chart(document.getElementById("chart-process"), chartConfig("#f472b6",  300, 320)),
-    rpm:     new Chart(document.getElementById("chart-rpm"),     chartConfig("#a78bfa", 1000, 3000)),
-    torque:  new Chart(document.getElementById("chart-torque"),  chartConfig("#34d399",    0,  90)),
-    wear:    new Chart(document.getElementById("chart-wear"),    chartConfig("#fb923c",    0, 260)),
-    prob:    new Chart(document.getElementById("chart-prob"),    chartConfig("#f87171",    0, 100)),
+    air:  new Chart(document.getElementById("c-air"),    lineCfg("#60a5fa", 290, 310)),
+    proc: new Chart(document.getElementById("c-proc"),   lineCfg("#f472b6", 300, 320)),
+    rpm:  new Chart(document.getElementById("c-rpm"),    lineCfg("#a78bfa",1000,3000)),
+    torq: new Chart(document.getElementById("c-torque"), lineCfg("#34d399",   0,  90)),
+    wear: new Chart(document.getElementById("c-wear"),   lineCfg("#fb923c",   0, 260)),
+    prob: new Chart(document.getElementById("c-prob"),   lineCfg("#f87171",   0, 100)),
   };
 
-  function pushData(chart, label, value) {
+  function push(chart, label, val) {
     chart.data.labels.push(label);
-    chart.data.datasets[0].data.push(value);
-    if (chart.data.labels.length > MAX_POINTS) {
-      chart.data.labels.shift();
-      chart.data.datasets[0].data.shift();
-    }
+    chart.data.datasets[0].data.push(val);
+    if (chart.data.labels.length > MAX_PTS) { chart.data.labels.shift(); chart.data.datasets[0].data.shift(); }
     chart.update();
   }
 
-  // Scatter chart: 히스토리 점 + 현재 점
-  const scatterHistory = { data: [], colors: [], radii: [] };
-  const scatterChart = new Chart(document.getElementById("chart-scatter"), {
-    type: "scatter",
-    data: {
-      datasets: [
-        {
-          label: "운전점",
-          data: [],
-          backgroundColor: [],
-          pointRadius: [],
-          pointHoverRadius: 8,
-        },
-        {
-          label: "현재",
-          data: [],
-          backgroundColor: "rgba(255,255,255,0.95)",
-          borderColor: "#60a5fa",
-          borderWidth: 2,
-          pointRadius: 10,
-          pointHoverRadius: 12,
-        }
-      ]
-    },
-    options: {
-      animation: false,
-      plugins: { legend: { display: false },
-        tooltip: { callbacks: {
-          label: (ctx) => {
-            if (ctx.datasetIndex === 0) return `RPM: ${Math.round(ctx.parsed.x)}  Torque: ${ctx.parsed.y.toFixed(1)} Nm`;
-            return `현재 — RPM: ${Math.round(ctx.parsed.x)}  Torque: ${ctx.parsed.y.toFixed(1)} Nm`;
-          }
-        }}
+  // Scatter
+  const scHist = { pts:[], colors:[], radii:[] };
+  const scatter = new Chart(document.getElementById("c-scatter"), {
+    type:"scatter",
+    data:{ datasets:[
+      { label:"히스토리", data:[], backgroundColor:[], pointRadius:[], pointHoverRadius:7 },
+      { label:"현재",     data:[], backgroundColor:"rgba(255,255,255,.95)", borderColor:"#60a5fa", borderWidth:2, pointRadius:9, pointHoverRadius:11 },
+    ]},
+    options:{
+      animation:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=> c.datasetIndex===1
+        ? `현재 — RPM:${Math.round(c.parsed.x)} Torque:${c.parsed.y.toFixed(1)}Nm`
+        : `RPM:${Math.round(c.parsed.x)} Torque:${c.parsed.y.toFixed(1)}Nm` }}},
+      scales:{
+        x:{ min:1000, max:3000, title:{display:true,text:"회전 속도 (RPM)",color:"#555",font:{size:10}}, ticks:{color:"#555",font:{size:10}}, grid:{color:"#1a1d27"} },
+        y:{ min:0,    max:90,   title:{display:true,text:"토크 (Nm)",      color:"#555",font:{size:10}}, ticks:{color:"#555",font:{size:10}}, grid:{color:"#1a1d27"} },
       },
-      scales: {
-        x: { min: 1000, max: 3000, title: { display: true, text: "회전 속도 (RPM)", color: "#666", font: { size: 11 } }, ticks: { color: "#555" }, grid: { color: "#1f2232" } },
-        y: { min: 0,    max: 90,   title: { display: true, text: "토크 (Nm)",       color: "#666", font: { size: 11 } }, ticks: { color: "#555" }, grid: { color: "#1f2232" } },
-      },
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive:true, maintainAspectRatio:false,
     }
   });
 
   function updateScatter(rpm, torque, prob) {
-    const color = prob >= 60 ? "#f87171cc" : prob >= 30 ? "#fbbf24cc" : "#4ade80cc";
-    scatterHistory.data.push({ x: rpm, y: torque });
-    scatterHistory.colors.push(color);
-    scatterHistory.radii.push(5);
-    if (scatterHistory.data.length > MAX_SCATTER) {
-      scatterHistory.data.shift();
-      scatterHistory.colors.shift();
-      scatterHistory.radii.shift();
-    }
-    scatterChart.data.datasets[0].data = [...scatterHistory.data];
-    scatterChart.data.datasets[0].backgroundColor = [...scatterHistory.colors];
-    scatterChart.data.datasets[0].pointRadius = [...scatterHistory.radii];
-    scatterChart.data.datasets[1].data = [{ x: rpm, y: torque }];
-    scatterChart.update();
+    const color = prob>=60?"#f87171cc":prob>=30?"#fbbf24cc":"#4ade80cc";
+    scHist.pts.push({x:rpm,y:torque}); scHist.colors.push(color); scHist.radii.push(5);
+    if (scHist.pts.length > MAX_SC) { scHist.pts.shift(); scHist.colors.shift(); scHist.radii.shift(); }
+    scatter.data.datasets[0].data = [...scHist.pts];
+    scatter.data.datasets[0].backgroundColor = [...scHist.colors];
+    scatter.data.datasets[0].pointRadius = [...scHist.radii];
+    scatter.data.datasets[1].data = [{x:rpm, y:torque}];
+    scatter.update();
   }
 
   let ws, paused = false;
-  let alertCount = 0;
 
   function connect() {
     ws = new WebSocket(`ws://${location.host}/ws/stream`);
-
     ws.onmessage = (e) => {
       if (paused) return;
       const d = JSON.parse(e.data);
-      const s = d.sensors;
-      const prob = d.failure_probability;
-      const ts = d.timestamp;
+      const s = d.sensors, prob = d.failure_probability, ts = d.timestamp;
 
-      // 센서값 업데이트
-      document.getElementById("val-air").innerHTML = s.air_temperature.toFixed(1) + " <span>K</span>";
-      document.getElementById("val-process").innerHTML = s.process_temperature.toFixed(1) + " <span>K</span>";
-      document.getElementById("val-rpm").innerHTML = Math.round(s.rotational_speed) + " <span>RPM</span>";
-      document.getElementById("val-torque").innerHTML = s.torque.toFixed(1) + " <span>Nm</span>";
-      document.getElementById("val-wear").innerHTML = Math.round(s.tool_wear) + " <span>min</span>";
-      document.getElementById("val-prob2").innerHTML = prob.toFixed(1) + " <span>%</span>";
+      document.getElementById("v-air").innerHTML    = s.air_temperature.toFixed(1)    + " <span>K</span>";
+      document.getElementById("v-proc").innerHTML   = s.process_temperature.toFixed(1) + " <span>K</span>";
+      document.getElementById("v-rpm").innerHTML    = Math.round(s.rotational_speed)   + " <span>RPM</span>";
+      document.getElementById("v-torque").innerHTML = s.torque.toFixed(1)              + " <span>Nm</span>";
+      document.getElementById("v-wear").innerHTML   = Math.round(s.tool_wear)          + " <span>min</span>";
+      document.getElementById("v-prob").innerHTML   = prob.toFixed(1)                  + " <span>%</span>";
 
-      pushData(charts.air,     ts, s.air_temperature);
-      pushData(charts.process, ts, s.process_temperature);
-      pushData(charts.rpm,     ts, s.rotational_speed);
-      pushData(charts.torque,  ts, s.torque);
-      pushData(charts.wear,    ts, s.tool_wear);
-      pushData(charts.prob,    ts, prob);
+      push(charts.air,  ts, s.air_temperature);
+      push(charts.proc, ts, s.process_temperature);
+      push(charts.rpm,  ts, s.rotational_speed);
+      push(charts.torq, ts, s.torque);
+      push(charts.wear, ts, s.tool_wear);
+      push(charts.prob, ts, prob);
       updateScatter(s.rotational_speed, s.torque, prob);
 
-      // 확률 바
-      document.getElementById("prob-value").textContent = prob.toFixed(1) + "%";
-      const barColor = prob >= 60 ? "#f87171" : prob >= 30 ? "#fbbf24" : "#4ade80";
-      const bar = document.getElementById("prob-bar");
-      bar.style.width = prob + "%";
-      bar.style.background = barColor;
+      const barColor = prob>=60?"#f87171":prob>=30?"#fbbf24":"#4ade80";
+      document.getElementById("prob-bar").style.cssText = `width:${prob}%;background:${barColor}`;
+      document.getElementById("prob-pct").textContent = prob.toFixed(1) + "%";
 
-      // 상태 배지
       const badge = document.getElementById("status-badge");
-      if (prob >= 60) { badge.className = "status-badge status-danger"; badge.textContent = "고장 위험"; }
-      else if (prob >= 30) { badge.className = "status-badge status-warn"; badge.textContent = "주의 필요"; }
-      else { badge.className = "status-badge status-normal"; badge.textContent = "정상"; }
+      if (prob>=60)      { badge.className="status-badge status-danger"; badge.textContent="고장 위험"; }
+      else if (prob>=30) { badge.className="status-badge status-warn";   badge.textContent="주의 필요"; }
+      else               { badge.className="status-badge status-normal"; badge.textContent="정상"; }
 
-      // 고장 유형 태그
-      const tagsEl = document.getElementById("failure-tags");
-      tagsEl.innerHTML = d.failure_types.length
-        ? d.failure_types.map(t => `<span class="ftag">${t}</span>`).join("")
+      // 고장 태그 (고장 확률 30% 이상일 때만)
+      document.getElementById("ftags").innerHTML = prob>=30 && d.failure_types.length
+        ? d.failure_types.map(t=>`<span class="ftag">${t.split("(")[0].trim()}</span>`).join("")
         : "";
 
-      // 알림 로그 (고장/주의만 기록)
-      if (prob >= 30 && alertCount < 50) {
-        const cls = prob >= 60 ? "alert-danger" : "alert-warn";
-        const icon = prob >= 60 ? "🔴" : "🟡";
-        const msg = d.failure_types.length ? d.failure_types.map(t => t.split("(")[0].trim()).join(", ") : "이상 감지";
+      if (prob >= 30) {
+        const cls  = prob>=60?"alert-danger":"alert-warn";
+        const icon = prob>=60?"🔴":"🟡";
+        const msg  = d.failure_types.length ? d.failure_types.map(t=>t.split("(")[0].trim()).join(", ") : "이상 감지";
         const item = document.createElement("div");
         item.className = `alert-item ${cls}`;
         item.innerHTML = `<div class="alert-time">${ts}</div><div class="alert-msg">${icon} ${msg} — ${prob.toFixed(1)}%</div>`;
         const log = document.getElementById("alert-log");
         log.insertBefore(item, log.firstChild);
-        alertCount++;
-        if (log.children.length > 30) log.removeChild(log.lastChild);
+        if (log.children.length > 40) log.removeChild(log.lastChild);
       }
     };
-
-    ws.onclose = () => {
-      if (!paused) setTimeout(connect, 2000);
-    };
+    ws.onclose = () => { if (!paused) setTimeout(connect, 2000); };
   }
 
   function toggleStream() {
-    const btn = document.getElementById("toggle-btn");
     paused = !paused;
-    btn.textContent = paused ? "재개" : "일시정지";
+    document.querySelector(".btn-stop").textContent = paused ? "재개" : "일시정지";
     if (!paused && ws.readyState !== WebSocket.OPEN) connect();
   }
 
