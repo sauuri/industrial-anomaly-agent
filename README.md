@@ -1,5 +1,7 @@
 # Industrial Anomaly Agent
 
+![banner](assets/banner.png)
+
 산업 설비 센서 데이터 기반 고장 예측 및 AI 분석 시스템
 
 ## 기술 스택
