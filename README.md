@@ -6,6 +6,10 @@
 
 ## 데모
 
+### 실시간 이상 감지 대시보드 (`/dashboard`)
+![dashboard](assets/screenshot_dashboard.png)
+
+### 단건 예측 (`/`)
 | 입력 화면 | 분석 결과 |
 |-----------|-----------|
 | ![input](assets/screenshot_input.png) | ![result](assets/screenshot_result.png) |
@@ -23,6 +27,7 @@
 - XGBoost 기반 고장 확률 예측
 - 5종 고장 유형 감지 (TWF, HDF, PWF, OSF, RNF)
 - GPT-4o-mini 기반 한국어 상황 분석 및 조치 권고
+- **실시간 WebSocket 스트리밍 대시보드** (1초 간격, 6개 센서 라이브 차트 + 알림 로그)
 
 ## 실행 방법
 
@@ -49,6 +54,9 @@ uvicorn app.main:app --reload
 
 | Method | Path | 설명 |
 |--------|------|------|
+| GET | / | 단건 예측 웹 UI |
+| GET | /dashboard | 실시간 모니터링 대시보드 |
+| WS | /ws/stream | WebSocket 센서 스트림 |
 | POST | /predict | 고장 예측 및 AI 분석 |
 | POST | /train | 모델 학습 |
 | GET | /health | 헬스 체크 |
