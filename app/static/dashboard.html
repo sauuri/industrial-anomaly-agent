@@ -46,13 +46,13 @@
     .chart-canvas-wrap { flex:1; min-height:0; position:relative; }
     .chart-canvas-wrap canvas { position:absolute; inset:0; width:100%!important; height:100%!important; }
 
-    /* 가운데: 산점도 */
-    .col-scatter { padding: 12px 6px 12px 0; display:flex; flex-direction:column; min-height:0; }
+    /* 가운데: 산점도 2개 */
+    .col-scatter { padding: 12px 6px 12px 0; display:flex; flex-direction:column; gap:10px; min-height:0; }
     .scatter-card { background:#1a1d27; border-radius:10px; padding:12px; flex:1; display:flex; flex-direction:column; min-height:0; }
     .scatter-header { flex-shrink:0; display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
     .scatter-title { font-size:11px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
     .scatter-sub { font-size:10px; color:#444; margin-top:2px; }
-    .scatter-legend { display:flex; gap:10px; font-size:10px; color:#666; flex-wrap:wrap; justify-content:flex-end; }
+    .scatter-legend { display:flex; gap:8px; font-size:10px; color:#666; flex-wrap:wrap; justify-content:flex-end; }
     .scatter-legend span { display:flex; align-items:center; gap:4px; }
     .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
     .scatter-canvas-wrap { flex:1; min-height:0; position:relative; }
@@ -128,22 +128,37 @@
     </div>
   </div>
 
-  <!-- 가운데: 토크-RPM 산점도 -->
+  <!-- 가운데: 토크-RPM + PCA 산점도 -->
   <div class="col-scatter">
     <div class="scatter-card">
       <div class="scatter-header">
         <div>
-          <div class="scatter-title">토크 — 회전속도 운전점 (Torque vs RPM)</div>
-          <div class="scatter-sub">최근 60개 운전점 · 색상 = 고장 확률</div>
+          <div class="scatter-title">Torque vs RPM 운전점</div>
+          <div class="scatter-sub">최근 60개 · 색상 = 고장 확률</div>
         </div>
         <div class="scatter-legend">
-          <span><i class="dot" style="background:#4ade80"></i>정상(&lt;30%)</span>
+          <span><i class="dot" style="background:#4ade80"></i>정상</span>
           <span><i class="dot" style="background:#fbbf24"></i>주의</span>
-          <span><i class="dot" style="background:#f87171"></i>위험(&gt;60%)</span>
+          <span><i class="dot" style="background:#f87171"></i>위험</span>
           <span><i class="dot" style="background:#fff;width:9px;height:9px;border:2px solid #60a5fa"></i>현재</span>
         </div>
       </div>
       <div class="scatter-canvas-wrap"><canvas id="c-scatter"></canvas></div>
+    </div>
+
+    <div class="scatter-card">
+      <div class="scatter-header">
+        <div>
+          <div class="scatter-title">PCA 운전 공간 (전체 센서 2D 압축)</div>
+          <div class="scatter-sub">정상/고장 전체 분포 · 흰 점 = 현재 위치</div>
+        </div>
+        <div class="scatter-legend">
+          <span><i class="dot" style="background:#22c55e44;border:1px solid #4ade80"></i>정상 영역</span>
+          <span><i class="dot" style="background:#ef444444;border:1px solid #f87171"></i>고장 영역</span>
+          <span><i class="dot" style="background:#fff;width:9px;height:9px;border:2px solid #facc15"></i>현재</span>
+        </div>
+      </div>
+      <div class="scatter-canvas-wrap"><canvas id="c-pca"></canvas></div>
     </div>
   </div>
 
@@ -212,6 +227,32 @@
     scatter.update();
   }
 
+  // PCA 차트
+  const pcaChart = new Chart(document.getElementById("c-pca"), {
+    type: "scatter",
+    data: { datasets: [
+      { label:"정상",   data:[], backgroundColor:"#4ade8022", pointRadius:3, pointHoverRadius:5 },
+      { label:"고장",   data:[], backgroundColor:"#f8717144", pointRadius:3, pointHoverRadius:5 },
+      { label:"현재",   data:[], backgroundColor:"rgba(255,255,255,.95)", borderColor:"#facc15", borderWidth:2, pointRadius:9, pointHoverRadius:11 },
+    ]},
+    options: {
+      animation: false,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:(c)=> c.datasetIndex===2 ? "현재 운전점" : (c.datasetIndex===0?"정상":"고장") }}},
+      scales: {
+        x: { title:{display:true,text:"PC1",color:"#555",font:{size:10}}, ticks:{color:"#555",font:{size:10}}, grid:{color:"#1a1d27"} },
+        y: { title:{display:true,text:"PC2",color:"#555",font:{size:10}}, ticks:{color:"#555",font:{size:10}}, grid:{color:"#1a1d27"} },
+      },
+      responsive:true, maintainAspectRatio:false,
+    }
+  });
+
+  // 배경 PCA 데이터 로드 (최초 1회)
+  fetch("/api/pca-background").then(r=>r.json()).then(data => {
+    pcaChart.data.datasets[0].data = data.normal;
+    pcaChart.data.datasets[1].data = data.failure;
+    pcaChart.update();
+  });
+
   let ws, paused = false;
 
   function connect() {
@@ -235,6 +276,12 @@
       push(charts.wear, ts, s.tool_wear);
       push(charts.prob, ts, prob);
       updateScatter(s.rotational_speed, s.torque, prob);
+
+      // PCA 현재 운전점 업데이트
+      if (d.pca) {
+        pcaChart.data.datasets[2].data = [{ x: d.pca.x, y: d.pca.y }];
+        pcaChart.update();
+      }
 
       const barColor = prob>=60?"#f87171":prob>=30?"#fbbf24":"#4ade80";
       document.getElementById("prob-bar").style.cssText = `width:${prob}%;background:${barColor}`;

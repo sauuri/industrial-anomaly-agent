@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from app.schemas import SensorInput, PredictionResult
 from app.model import predict
 from app.agent import explain
@@ -24,6 +25,36 @@ def root():
 @app.get("/dashboard")
 def dashboard():
     return FileResponse(os.path.join(static_dir, "dashboard.html"))
+
+
+@app.get("/api/pca-background")
+def pca_background():
+    import pickle, pandas as pd
+    from app.config import settings
+    from app.model import _preprocess, FEATURES, FAILURE_COLS
+
+    with open(settings.model_path, "rb") as f:
+        bundle = pickle.load(f)
+    scaler, pca = bundle["scaler"], bundle.get("pca")
+    if pca is None:
+        return JSONResponse({"normal": [], "failure": []})
+
+    df = pd.read_csv(settings.data_path)
+    df = _preprocess(df)
+    X = df[FEATURES]
+    y = df["Machine failure"]
+
+    X_scaled = scaler.transform(X)
+    coords = pca.transform(X_scaled)
+
+    # 정상 500개, 고장 전체 샘플링
+    normal_idx  = y[y == 0].sample(500, random_state=42).index
+    failure_idx = y[y == 1].index
+
+    normal_pts  = [{"x": round(float(coords[i][0]),3), "y": round(float(coords[i][1]),3)} for i in normal_idx]
+    failure_pts = [{"x": round(float(coords[i][0]),3), "y": round(float(coords[i][1]),3)} for i in failure_idx]
+
+    return JSONResponse({"normal": normal_pts, "failure": failure_pts})
 
 
 @app.get("/health")
@@ -74,6 +105,7 @@ async def stream(websocket: WebSocket):
                 "failure_probability": prediction["failure_probability"],
                 "failure_predicted": prediction["failure_predicted"],
                 "failure_types": prediction["failure_types"],
+                "pca": prediction.get("pca"),
             }))
             await asyncio.sleep(1)
     except WebSocketDisconnect:

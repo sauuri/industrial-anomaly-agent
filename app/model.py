@@ -4,6 +4,7 @@ import pickle
 import os
 from xgboost import XGBClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from app.config import settings
@@ -70,9 +71,14 @@ def train():
     y_pred = model.predict(X_test_scaled)
     print(classification_report(y_test, y_pred))
 
+    # PCA: 전체 데이터로 학습해서 배경 분포 표현
+    X_all_scaled = scaler.transform(X)
+    pca = PCA(n_components=2, random_state=42)
+    pca.fit(X_all_scaled)
+
     os.makedirs("models", exist_ok=True)
     with open(settings.model_path, "wb") as f:
-        pickle.dump({"model": model, "scaler": scaler, "type_models": type_models}, f)
+        pickle.dump({"model": model, "scaler": scaler, "type_models": type_models, "pca": pca}, f)
 
     print(f"모델 저장 완료: {settings.model_path}")
 
@@ -110,9 +116,16 @@ def predict(sensor_input: dict) -> dict:
         if p >= 0.3:
             failure_types.append(FAILURE_NAMES[col])
 
+    pca = bundle.get("pca")
+    pca_coords = None
+    if pca is not None:
+        coords = pca.transform(X_scaled)[0]
+        pca_coords = {"x": round(float(coords[0]), 4), "y": round(float(coords[1]), 4)}
+
     return {
         "failure_predicted": failure,
         "failure_probability": round(prob * 100, 1),
         "failure_types": failure_types,
         "features": row,
+        "pca": pca_coords,
     }
