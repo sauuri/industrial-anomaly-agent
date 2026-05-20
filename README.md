@@ -35,20 +35,31 @@
 
 ## 실행 방법
 
+### Docker (권장)
+
 ```bash
-# 가상환경 설정
+cp .env.example .env
+# .env에 OPENAI_API_KEY 입력
+
+docker-compose up --build
+
+# 최초 1회 모델 학습
+docker-compose exec app curl -X POST http://localhost:8000/train
+```
+
+### 로컬 실행
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 환경변수 설정
 cp .env.example .env
 # .env에 OPENAI_API_KEY 입력
 
 # 모델 학습 (최초 1회)
 curl -X POST http://localhost:8000/train
 
-# 서버 실행
 uvicorn app.main:app --reload
 ```
 
