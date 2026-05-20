@@ -69,6 +69,12 @@
     .alert-warn   { background:#2d2315; border-left:3px solid #fbbf24; }
     .alert-time { color:#555; font-size:10px; margin-bottom:2px; }
     .alert-msg  { color:#ddd; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px; flex-shrink:0; }
+    .stat-box { background:#13151f; border-radius:8px; padding:8px 10px; }
+    .stat-label { font-size:10px; color:#555; margin-bottom:3px; }
+    .stat-value { font-size:18px; font-weight:700; color:#fff; }
+    .stat-value.danger { color:#f87171; }
+    .stat-value.warn { color:#fbbf24; }
   </style>
 </head>
 <body>
@@ -162,8 +168,23 @@
     </div>
   </div>
 
-  <!-- 오른쪽: 알림 로그 -->
+  <!-- 오른쪽: 스탯 + 알림 로그 -->
   <div class="col-alerts">
+    <div class="alert-title">오늘의 통계 (DB)</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">총 측정 횟수</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">고장 감지</div>
+        <div class="stat-value danger" id="stat-failures">—</div>
+      </div>
+      <div class="stat-box" style="grid-column:1/-1">
+        <div class="stat-label">평균 고장 확률</div>
+        <div class="stat-value warn" id="stat-avg">—</div>
+      </div>
+    </div>
     <div class="alert-title">알림 로그</div>
     <div class="alert-log" id="alert-log"></div>
   </div>
@@ -317,6 +338,17 @@
     document.querySelector(".btn-stop").textContent = paused ? "재개" : "일시정지";
     if (!paused && ws.readyState !== WebSocket.OPEN) connect();
   }
+
+  // DB 스탯 10초마다 갱신
+  function refreshStats() {
+    fetch("/api/stats").then(r => r.json()).then(d => {
+      document.getElementById("stat-total").textContent    = d.total.toLocaleString();
+      document.getElementById("stat-failures").textContent = d.failures.toLocaleString();
+      document.getElementById("stat-avg").textContent      = d.avg_prob + "%";
+    }).catch(() => {});
+  }
+  refreshStats();
+  setInterval(refreshStats, 10000);
 
   connect();
 </script>

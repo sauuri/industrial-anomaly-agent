@@ -3,8 +3,7 @@ import json
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from app.schemas import SensorInput, PredictionResult
 from app.model import predict
 from app.agent import explain
@@ -15,6 +14,15 @@ app = FastAPI(title="Industrial Anomaly Agent", version="0.1.0")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.on_event("startup")
+def startup():
+    try:
+        from app.database import init_db
+        init_db()
+    except Exception as e:
+        print(f"DB 연결 실패 (DB 없이 실행): {e}")
 
 
 @app.get("/")
@@ -29,9 +37,10 @@ def dashboard():
 
 @app.get("/api/pca-background")
 def pca_background():
-    import pickle, pandas as pd
+    import pickle
+    import pandas as pd
     from app.config import settings
-    from app.model import _preprocess, FEATURES, FAILURE_COLS
+    from app.model import _preprocess, FEATURES
 
     with open(settings.model_path, "rb") as f:
         bundle = pickle.load(f)
@@ -47,14 +56,31 @@ def pca_background():
     X_scaled = scaler.transform(X)
     coords = pca.transform(X_scaled)
 
-    # 정상 500개, 고장 전체 샘플링
     normal_idx  = y[y == 0].sample(500, random_state=42).index
     failure_idx = y[y == 1].index
 
-    normal_pts  = [{"x": round(float(coords[i][0]),3), "y": round(float(coords[i][1]),3)} for i in normal_idx]
-    failure_pts = [{"x": round(float(coords[i][0]),3), "y": round(float(coords[i][1]),3)} for i in failure_idx]
+    normal_pts  = [{"x": round(float(coords[i][0]), 3), "y": round(float(coords[i][1]), 3)} for i in normal_idx]
+    failure_pts = [{"x": round(float(coords[i][0]), 3), "y": round(float(coords[i][1]), 3)} for i in failure_idx]
 
     return JSONResponse({"normal": normal_pts, "failure": failure_pts})
+
+
+@app.get("/api/history")
+def history(limit: int = 100):
+    try:
+        from app.database import get_history
+        return JSONResponse(get_history(limit))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/stats")
+def stats():
+    try:
+        from app.database import get_stats
+        return JSONResponse(get_stats())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")
@@ -98,6 +124,15 @@ async def stream(websocket: WebSocket):
         while True:
             sensor = next_row()
             prediction = predict(sensor)
+
+            # DB 저장 (실패해도 스트림은 계속)
+            try:
+                from app.database import save_log
+                await asyncio.get_event_loop().run_in_executor(
+                    None, save_log, sensor, prediction
+                )
+            except Exception:
+                pass
 
             await websocket.send_text(json.dumps({
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
