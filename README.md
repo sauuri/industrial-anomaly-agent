@@ -4,6 +4,12 @@
 
 산업 설비 센서 데이터 기반 고장 예측 및 AI 분석 시스템
 
+## 데모
+
+| 입력 화면 | 분석 결과 |
+|-----------|-----------|
+| ![input](assets/screenshot_input.png) | ![result](assets/screenshot_result.png) |
+
 ## 기술 스택
 
 - **ML**: XGBoost (이진 분류 + 고장 유형별 멀티레이블)
