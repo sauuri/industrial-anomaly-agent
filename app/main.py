@@ -83,6 +83,11 @@ def stats():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/history")
+def history_page():
+    return FileResponse(os.path.join(static_dir, "history.html"))
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

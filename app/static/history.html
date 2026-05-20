@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>History — Industrial Anomaly Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; background: #1a1d27; border-bottom: 1px solid #2a2d3a; }
+    .header h1 { font-size: 16px; font-weight: 700; color: #fff; }
+    .header p  { font-size: 11px; color: #666; margin-top: 2px; }
+    .nav { display: flex; gap: 8px; }
+    .nav a { padding: 5px 14px; border-radius: 7px; font-size: 12px; text-decoration: none; color: #888; background: #2a2d3a; }
+    .nav a:hover { color: #fff; }
+    .nav a.active { background: #6366f1; color: #fff; }
+
+    .toolbar { display: flex; align-items: center; gap: 12px; padding: 14px 28px; background: #13151f; border-bottom: 1px solid #2a2d3a; flex-wrap: wrap; }
+    .toolbar label { font-size: 12px; color: #888; }
+    select, input[type="number"] { background: #1a1d27; border: 1px solid #2a2d3a; color: #e0e0e0; border-radius: 6px; padding: 5px 10px; font-size: 12px; outline: none; }
+    select:focus, input:focus { border-color: #6366f1; }
+    .btn { padding: 5px 16px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+    .count-badge { font-size: 12px; color: #666; margin-left: auto; }
+
+    .stats-bar { display: flex; gap: 16px; padding: 12px 28px; background: #13151f; border-bottom: 1px solid #2a2d3a; }
+    .stat { display: flex; flex-direction: column; }
+    .stat-label { font-size: 10px; color: #555; }
+    .stat-value { font-size: 18px; font-weight: 700; color: #fff; }
+    .stat-value.red { color: #f87171; }
+    .stat-value.yellow { color: #fbbf24; }
+    .stat-value.green { color: #4ade80; }
+
+    .table-wrap { padding: 20px 28px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid #2a2d3a; white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid #1f2232; white-space: nowrap; }
+    tr:hover td { background: #1a1d27; }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-danger { background: #7f1d1d; color: #f87171; }
+    .badge-normal { background: #14532d; color: #4ade80; }
+    .prob-cell { font-weight: 600; }
+    .prob-high { color: #f87171; }
+    .prob-mid  { color: #fbbf24; }
+    .prob-low  { color: #4ade80; }
+
+    .prob-mini-bar { width: 60px; height: 6px; background: #2a2d3a; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+    .prob-mini-fill { height: 100%; border-radius: 3px; }
+
+    .empty { text-align: center; padding: 60px; color: #555; font-size: 14px; }
+    .loading { text-align: center; padding: 60px; color: #555; }
+
+    .pagination { display: flex; align-items: center; gap: 8px; padding: 16px 28px; justify-content: center; }
+    .page-btn { padding: 5px 12px; background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 6px; color: #888; font-size: 12px; cursor: pointer; }
+    .page-btn:hover { border-color: #6366f1; color: #fff; }
+    .page-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .page-info { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>센서 로그 히스토리</h1>
+    <p>Industrial Anomaly Agent — DB 적재 데이터 조회</p>
+  </div>
+  <div class="nav">
+    <a href="/">단건 예측</a>
+    <a href="/dashboard">대시보드</a>
+    <a href="/history" class="active">히스토리</a>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-label">전체 기록</div><div class="stat-value" id="s-total">—</div></div>
+  <div class="stat"><div class="stat-label">고장 감지</div><div class="stat-value red" id="s-failures">—</div></div>
+  <div class="stat"><div class="stat-label">평균 고장 확률</div><div class="stat-value yellow" id="s-avg">—</div></div>
+  <div class="stat"><div class="stat-label">고장률</div><div class="stat-value" id="s-rate">—</div></div>
+</div>
+
+<div class="toolbar">
+  <label>필터</label>
+  <select id="filter-type">
+    <option value="all">전체</option>
+    <option value="failure">고장만</option>
+    <option value="normal">정상만</option>
+  </select>
+  <label>표시 개수</label>
+  <select id="limit">
+    <option value="50">50개</option>
+    <option value="100" selected>100개</option>
+    <option value="200">200개</option>
+    <option value="500">500개</option>
+  </select>
+  <button class="btn btn-primary" onclick="load()">조회</button>
+  <span class="count-badge" id="count-badge"></span>
+</div>
+
+<div class="table-wrap">
+  <div class="loading" id="loading">데이터 불러오는 중...</div>
+  <table id="table" style="display:none">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>시각</th>
+        <th>장비</th>
+        <th>공기온도 (K)</th>
+        <th>공정온도 (K)</th>
+        <th>RPM</th>
+        <th>토크 (Nm)</th>
+        <th>공구마모 (min)</th>
+        <th>고장 확률</th>
+        <th>결과</th>
+        <th>고장 유형</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="empty" style="display:none">데이터가 없습니다.</div>
+</div>
+
+<script>
+  let allData = [];
+
+  async function load() {
+    document.getElementById("loading").style.display = "block";
+    document.getElementById("table").style.display = "none";
+    document.getElementById("empty").style.display = "none";
+
+    const limit = document.getElementById("limit").value;
+    const res = await fetch(`/api/history?limit=${limit}`);
+    allData = await res.json();
+    render();
+  }
+
+  function render() {
+    const filter = document.getElementById("filter-type").value;
+    let data = allData;
+    if (filter === "failure") data = allData.filter(r => r.failure_predicted);
+    if (filter === "normal")  data = allData.filter(r => !r.failure_predicted);
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("count-badge").textContent = `${data.length}건 표시 중`;
+
+    // 스탯
+    const total    = data.length;
+    const failures = data.filter(r => r.failure_predicted).length;
+    const avgProb  = total ? (data.reduce((s, r) => s + r.failure_probability, 0) / total).toFixed(1) : 0;
+    const rate     = total ? ((failures / total) * 100).toFixed(1) : 0;
+    document.getElementById("s-total").textContent    = total.toLocaleString();
+    document.getElementById("s-failures").textContent = failures.toLocaleString();
+    document.getElementById("s-avg").textContent      = avgProb + "%";
+    document.getElementById("s-rate").textContent     = rate + "%";
+
+    if (data.length === 0) {
+      document.getElementById("empty").style.display = "block";
+      return;
+    }
+
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = data.map((r, i) => {
+      const prob = r.failure_probability;
+      const probClass = prob >= 60 ? "prob-high" : prob >= 30 ? "prob-mid" : "prob-low";
+      const barColor  = prob >= 60 ? "#f87171"   : prob >= 30 ? "#fbbf24"  : "#4ade80";
+      const badge     = r.failure_predicted
+        ? '<span class="badge badge-danger">🔴 고장</span>'
+        : '<span class="badge badge-normal">🟢 정상</span>';
+      const types = r.failure_types.length
+        ? r.failure_types.map(t => t.split("(")[0].trim()).join(", ")
+        : "—";
+
+      return `<tr>
+        <td style="color:#555">${r.id}</td>
+        <td style="color:#aaa">${r.ts}</td>
+        <td><b>${r.machine_type}</b></td>
+        <td>${r.air_temperature.toFixed(1)}</td>
+        <td>${r.process_temperature.toFixed(1)}</td>
+        <td>${Math.round(r.rotational_speed)}</td>
+        <td>${r.torque.toFixed(1)}</td>
+        <td>${Math.round(r.tool_wear)}</td>
+        <td class="prob-cell ${probClass}">
+          ${prob.toFixed(1)}%
+          <span class="prob-mini-bar"><span class="prob-mini-fill" style="width:${prob}%;background:${barColor}"></span></span>
+        </td>
+        <td>${badge}</td>
+        <td style="color:#888;font-size:12px">${types}</td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("table").style.display = "table";
+  }
+
+  document.getElementById("filter-type").addEventListener("change", render);
+  load();
+</script>
+</body>
+</html>
