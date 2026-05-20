@@ -18,6 +18,15 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.on_event("startup")
 def startup():
+    # 모델 없으면 자동 학습
+    from app.config import settings
+    import os
+    if not os.path.exists(settings.model_path):
+        print("모델 없음 → 자동 학습 시작...")
+        from app.model import train
+        train()
+        print("자동 학습 완료")
+    # DB 초기화
     try:
         from app.database import init_db
         init_db()
