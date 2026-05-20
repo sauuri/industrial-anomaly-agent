@@ -9,6 +9,9 @@
 ### 실시간 이상 감지 대시보드 (`/dashboard`)
 ![dashboard](assets/screenshot_dashboard.png)
 
+### 토크-RPM 운전점 산점도
+![scatter](assets/screenshot_scatter.png)
+
 ### 단건 예측 (`/`)
 | 입력 화면 | 분석 결과 |
 |-----------|-----------|
@@ -28,6 +31,7 @@
 - 5종 고장 유형 감지 (TWF, HDF, PWF, OSF, RNF)
 - GPT-4o-mini 기반 한국어 상황 분석 및 조치 권고
 - **실시간 WebSocket 스트리밍 대시보드** (1초 간격, 6개 센서 라이브 차트 + 알림 로그)
+- **토크-RPM 운전점 산점도** (정상/주의/위험 색상 구분, 현재 운전점 실시간 표시)
 
 ## 실행 방법
 
